@@ -1,0 +1,23 @@
+services:
+
+  # ── MySQL 데이터베이스 ────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: todo-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234       # root 계정 비밀번호
+      MYSQL_DATABASE: todo_db             # 자동 생성할 DB 이름 (application.properties와 일치)
+      MYSQL_USER: todo_user               # 애플리케이션용 계정 (application.properties와 일치)
+      MYSQL_PASSWORD: todo1234            # 애플리케이션용 비밀번호 (application.properties와 일치)
+    ports:
+      - "3306:3306"                       # 호스트:컨테이너 포트 매핑
+    volumes:
+      - mysql_data:/var/lib/mysql         # 컨테이너 재시작 후에도 데이터 유지
+    healthcheck:                          # MySQL이 준비됐는지 확인
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:    # Named Volume — Docker가 데이터를 영속적으로 관리
