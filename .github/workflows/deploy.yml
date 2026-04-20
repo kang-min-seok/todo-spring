@@ -28,53 +28,39 @@ jobs:
           chmod +x gradlew
           ./gradlew bootJar -x test
 
-      # 4. EC2에 JAR 전송 및 배포
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          # envs로 전달한 변수는 script 내에서 $변수명으로 사용 가능
-          envs: DB_URL,DB_USERNAME,DB_PASSWORD
-          script: |
-            # 기존 앱 프로세스 종료 (없으면 무시)
-            pkill -f 'todo-spring' || true
+      # 4. SSH 키 설정
+      # appleboy/ssh-action 대신 네이티브 ssh/scp 사용 (ED25519 키 호환성 문제 회피)
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-            # 잠시 대기 (프로세스가 완전히 종료될 때까지)
-            sleep 2
+      # 5. 기존 앱 프로세스 종료
+      - name: Stop existing application
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+            "pkill -f 'todo-spring' || true && sleep 2"
 
-      # 5. JAR 파일 SCP 전송
+      # 6. JAR 파일 전송
       - name: Copy JAR to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "build/libs/*.jar"
-          target: "~/app"
-          strip_components: 2   # build/libs/ 경로 제거, JAR만 전송
+        run: |
+          scp -i ~/.ssh/id_ed25519 \
+            build/libs/*.jar \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/app/
 
-      # 6. EC2에서 새 버전 실행
+      # 7. EC2에서 새 버전 실행
       - name: Start Application
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          envs: DB_URL,DB_USERNAME,DB_PASSWORD
-          script: |
-            cd ~/app
-
-            # 환경변수를 주입하며 백그라운드 실행
-            # nohup: 터미널이 닫혀도 프로세스 유지
-            # &: 백그라운드 실행
-            # > app.log 2>&1: stdout + stderr를 app.log에 저장
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
             nohup env \
               DB_URL="${{ secrets.DB_URL }}" \
               DB_USERNAME="${{ secrets.DB_USERNAME }}" \
               DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              DDL_AUTO="${{ secrets.DDL_AUTO }}" \
+              SHOW_SQL="${{ secrets.SHOW_SQL }}" \
               java -jar ~/app/todo-spring-*.jar \
               > ~/app/app.log 2>&1 &
-
             echo "배포 완료"
+          EOF
