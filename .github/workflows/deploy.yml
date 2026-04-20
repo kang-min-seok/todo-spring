@@ -41,7 +41,7 @@ jobs:
       - name: Stop existing application
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-            "pkill -f 'java -jar' || true && sleep 2"
+            "pkill java || true; sleep 1"
 
       # 6. JAR 파일 전송
       - name: Copy JAR to EC2
