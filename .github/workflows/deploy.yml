@@ -30,31 +30,30 @@ jobs:
           ./gradlew bootJar -x test
 
       # 4. SSH 키 설정
-      # printf 사용: echo는 개행 처리가 불안정해 키 파일이 깨질 수 있음
-      # StrictHostKeyChecking=no: known_hosts 검증 생략 (학습용 환경)
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+      # webfactory/ssh-agent: ED25519 키를 ssh-agent에 안전하게 등록
+      # 이후 ssh/scp 명령은 -i 없이도 자동으로 이 키를 사용함
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       # 5. 기존 앱 프로세스 종료
       - name: Stop existing application
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
             "pkill -f 'todo-spring' || true && sleep 2"
 
       # 6. JAR 파일 전송
       - name: Copy JAR to EC2
         run: |
-          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 \
+          scp -o StrictHostKeyChecking=no \
             build/libs/*.jar \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/app/
 
       # 7. EC2에서 새 버전 실행
       - name: Start Application
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
             nohup env \
               DB_URL="${{ secrets.DB_URL }}" \
               DB_USERNAME="${{ secrets.DB_USERNAME }}" \
