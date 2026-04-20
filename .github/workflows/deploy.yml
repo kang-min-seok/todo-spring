@@ -30,31 +30,31 @@ jobs:
           ./gradlew bootJar -x test
 
       # 4. SSH 키 설정
-      # appleboy/ssh-action 대신 네이티브 ssh/scp 사용 (ED25519 키 호환성 문제 회피)
+      # printf 사용: echo는 개행 처리가 불안정해 키 파일이 깨질 수 있음
+      # StrictHostKeyChecking=no: known_hosts 검증 생략 (학습용 환경)
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
       # 5. 기존 앱 프로세스 종료
       - name: Stop existing application
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
             "pkill -f 'todo-spring' || true && sleep 2"
 
       # 6. JAR 파일 전송
       - name: Copy JAR to EC2
         run: |
-          scp -i ~/.ssh/id_ed25519 \
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 \
             build/libs/*.jar \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/app/
 
       # 7. EC2에서 새 버전 실행
       - name: Start Application
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
             nohup env \
               DB_URL="${{ secrets.DB_URL }}" \
               DB_USERNAME="${{ secrets.DB_USERNAME }}" \
