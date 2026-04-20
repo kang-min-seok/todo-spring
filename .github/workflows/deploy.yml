@@ -3,7 +3,7 @@ name: Deploy to EC2
 # main 브랜치에 push될 때 트리거
 on:
   push:
-    branches: [ main ]
+    branches: [ main, phase5/ci-cd ]
   workflow_dispatch:   # GitHub UI에서 수동 실행 가능
 
 jobs:
