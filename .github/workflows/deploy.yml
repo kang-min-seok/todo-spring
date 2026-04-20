@@ -40,9 +40,8 @@ jobs:
       # 5. 기존 앱 프로세스 종료
       - name: Stop existing application
         run: |
-          ssh-add -l
-          ssh -v -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-            "pkill -f 'todo-spring' || true && sleep 2"
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+            "pkill -f 'java -jar' || true && sleep 2"
 
       # 6. JAR 파일 전송
       - name: Copy JAR to EC2
