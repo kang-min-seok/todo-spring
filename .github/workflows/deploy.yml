@@ -22,8 +22,11 @@ jobs:
           distribution: 'temurin'
 
       # 3. Gradle 빌드 (테스트 제외, 실행 가능한 JAR 생성)
+      # Windows에서 커밋하면 gradlew 실행 권한이 사라지는 경우가 있어 명시적으로 부여
       - name: Build with Gradle
-        run: ./gradlew bootJar -x test
+        run: |
+          chmod +x gradlew
+          ./gradlew bootJar -x test
 
       # 4. EC2에 JAR 전송 및 배포
       - name: Deploy to EC2
