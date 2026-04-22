@@ -50,6 +50,7 @@ jobs:
           scp -o StrictHostKeyChecking=no \
             build/libs/*.jar \
             Dockerfile \
+            .dockerignore \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/app/
 
       # 7. Spring 컨테이너 재빌드 및 시작
