@@ -37,30 +37,23 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # 5. 기존 앱 프로세스 종료
+      # 5. 기존 Spring 컨테이너 중지
       - name: Stop existing application
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-            "pkill java || true; sleep 1"
+            "cd ~/app && docker compose stop spring || true"
 
-      # 6. JAR 파일 전송
-      - name: Copy JAR to EC2
+      # 6. JAR 파일 및 Dockerfile 전송
+      # 환경변수는 EC2의 .env 파일로 관리하므로 워크플로우에서 주입하지 않음
+      - name: Copy files to EC2
         run: |
           scp -o StrictHostKeyChecking=no \
             build/libs/*.jar \
+            Dockerfile \
             ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/app/
 
-      # 7. EC2에서 새 버전 실행
+      # 7. Spring 컨테이너 재빌드 및 시작
       - name: Start Application
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
-            nohup env \
-              DB_URL="${{ secrets.DB_URL }}" \
-              DB_USERNAME="${{ secrets.DB_USERNAME }}" \
-              DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-              DDL_AUTO="${{ secrets.DDL_AUTO }}" \
-              SHOW_SQL="${{ secrets.SHOW_SQL }}" \
-              java -jar ~/app/todo-spring-*.jar \
-              > ~/app/app.log 2>&1 &
-            echo "배포 완료"
-          EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+            "cd ~/app && docker compose up -d --build spring"
