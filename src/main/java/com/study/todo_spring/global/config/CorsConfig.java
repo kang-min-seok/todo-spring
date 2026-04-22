@@ -18,8 +18,9 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")           // /api/ 하위 모든 경로에 적용
                 .allowedOrigins(
-                        "http://localhost:5173",  // Vite 기본 포트
-                        "http://localhost:3000"   // 기타 로컬 개발 포트
+                        "http://localhost:5173",          // Vite 기본 포트
+                        "http://localhost:3000",          // 기타 로컬 개발 포트
+                        "https://todo-study.pages.dev"   // Cloudflare Pages 프로덕션
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
