@@ -56,4 +56,7 @@ docker compose stop spring-${ACTIVE}
 # active 색상 기록
 echo $INACTIVE > ~/app/active_color
 
+# EC2 재시작 시 docker compose가 최신 이미지를 사용할 수 있도록 .env 업데이트
+sed -i "s|^ECR_IMAGE=.*|ECR_IMAGE=$NEW_IMAGE|" ~/app/.env
+
 echo "배포 완료: $INACTIVE 가 active"
