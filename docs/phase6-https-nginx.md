@@ -44,9 +44,40 @@ SSL 인증서 갱신, 정적 파일 서빙, 요청 로깅 등을 nginx에서 일
 
 ## 1. DuckDNS 무료 도메인 발급
 
-EC2는 탄력적 IP 없이 중지/시작 시 IP가 바뀐다.
-Let's Encrypt는 도메인 기반으로 SSL 인증서를 발급하므로, IP가 바뀌어도 도메인이 항상 최신 IP를 가리키도록 설정해야 한다.
-DuckDNS는 이를 위한 무료 동적 DNS 서비스다.
+### DuckDNS가 필요한 이유
+
+EC2는 탄력적 IP 없이 중지/시작할 때마다 퍼블릭 IP가 바뀐다.
+Let's Encrypt는 도메인 기반으로 SSL 인증서를 발급하므로 고정 IP 없이는 HTTPS를 적용할 수 없다.
+
+DuckDNS는 **동적 DNS(Dynamic DNS)** 서비스다. 도메인과 IP의 매핑 정보를 저장하고, API를 통해 언제든 IP를 업데이트할 수 있다.
+
+IP는 AWS가 EC2에 부여하는 것이고, DuckDNS는 그 IP를 도메인과 연결해주는 중간 장부 역할이다.
+
+```
+처음 등록 시:
+  todo-study.duckdns.org → 3.39.187.206   (첫 번째 EC2 IP)
+
+EC2 중지 후 재시작:
+  EC2 새 IP = 13.125.xxx.xxx
+  duckdns-update.sh 실행 → DuckDNS에 새 IP 신고
+  todo-study.duckdns.org → 13.125.xxx.xxx (매핑 자동 갱신)
+
+사용자 입장:
+  todo-study.duckdns.org 접속 → 항상 현재 EC2로 연결됨
+```
+
+`ip=` 를 비워서 API를 호출하면 DuckDNS가 요청을 보낸 서버의 IP를 자동으로 감지해서 등록한다. EC2에서 스크립트를 실행하면 EC2의 현재 퍼블릭 IP가 자동으로 등록되는 원리다.
+
+**탄력적 IP와 비교:**
+
+| | 탄력적 IP | DuckDNS |
+|---|---|---|
+| 비용 | 미사용 시 과금 | 무료 |
+| IP | 항상 동일한 IP 고정 | 시작할 때마다 IP 바뀜 |
+| 접근 방식 | IP 직접 사용 가능 | 도메인으로 접근 |
+| DNS 전파 | 즉시 | 수초~수십초 지연 |
+
+탄력적 IP는 IP 자체를 고정하는 방식이고, DuckDNS는 IP가 바뀌어도 도메인이 항상 최신 IP를 가리키도록 유지하는 방식이다.
 
 ### 1-1. 도메인 생성
 

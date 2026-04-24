@@ -2,3 +2,4 @@ certbot/
 nginx/
 *.log
 .env
+deploy.sh

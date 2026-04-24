@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+NEW_IMAGE=$1
+
+if [ -z "$NEW_IMAGE" ]; then
+  echo "Usage: ./deploy.sh <ECR_IMAGE>"
+  exit 1
+fi
+
+# ECR 로그인 (EC2 IAM Role 사용)
+aws ecr get-login-password --region ap-northeast-2 \
+  | docker login --username AWS --password-stdin \
+    $(echo $NEW_IMAGE | cut -d'/' -f1)
+
+# 현재 active 색상 파악 (없으면 blue가 active)
+ACTIVE=$(cat ~/app/active_color 2>/dev/null || echo "blue")
+if [ "$ACTIVE" = "blue" ]; then
+  INACTIVE="green"
+else
+  INACTIVE="blue"
+fi
+
+echo "현재 active: $ACTIVE → 새 배포 대상: $INACTIVE"
+
+# 새 컨테이너 시작
+ECR_IMAGE=$NEW_IMAGE docker compose up -d spring-${INACTIVE}
+
+# 헬스체크 (최대 60초)
+echo "헬스체크 중..."
+for i in $(seq 1 30); do
+  if docker compose exec spring-${INACTIVE} \
+      wget -qO- http://localhost:8080/api/todos > /dev/null 2>&1; then
+    echo "헬스체크 통과!"
+    break
+  fi
+  if [ $i -eq 30 ]; then
+    echo "헬스체크 실패 — 롤백"
+    docker compose stop spring-${INACTIVE}
+    exit 1
+  fi
+  sleep 2
+done
+
+# nginx upstream 전환
+sed -i "s/spring-${ACTIVE}:8080/spring-${INACTIVE}:8080/" \
+  ~/app/nginx/conf.d/app.conf
+docker compose exec nginx nginx -s reload
+
+# 이전 컨테이너 종료
+docker compose stop spring-${ACTIVE}
+
+# active 색상 기록
+echo $INACTIVE > ~/app/active_color
+
+echo "배포 완료: $INACTIVE 가 active"
