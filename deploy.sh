@@ -13,6 +13,9 @@ aws ecr get-login-password --region ap-northeast-2 \
   | docker login --username AWS --password-stdin \
     $(echo $NEW_IMAGE | cut -d'/' -f1)
 
+# 모든 docker compose 명령에서 ECR_IMAGE를 사용할 수 있도록 export
+export ECR_IMAGE=$NEW_IMAGE
+
 # 현재 active 색상 파악 (없으면 blue가 active)
 ACTIVE=$(cat ~/app/active_color 2>/dev/null || echo "blue")
 if [ "$ACTIVE" = "blue" ]; then
@@ -24,7 +27,7 @@ fi
 echo "현재 active: $ACTIVE → 새 배포 대상: $INACTIVE"
 
 # 새 컨테이너 시작
-ECR_IMAGE=$NEW_IMAGE docker compose up -d spring-${INACTIVE}
+docker compose up -d spring-${INACTIVE}
 
 # 헬스체크 (최대 60초)
 echo "헬스체크 중..."
