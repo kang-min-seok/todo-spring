@@ -26,8 +26,8 @@ fi
 
 echo "현재 active: $ACTIVE → 새 배포 대상: $INACTIVE"
 
-# 새 컨테이너 시작
-docker compose up -d spring-${INACTIVE}
+# 새 컨테이너 시작 (--remove-orphans: 구버전 컨테이너 자동 정리)
+docker compose up -d --remove-orphans spring-${INACTIVE}
 
 # 헬스체크 (최대 60초)
 echo "헬스체크 중..."
